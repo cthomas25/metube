@@ -1,0 +1,63 @@
+version: '2'
+services:
+  datastore:
+    image: busybox
+    restart: always
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./src:/var/www/app
+      - ./nginx/app.conf:/etc/nginx/conf.d/default.conf
+    command: /bin/sh
+
+  app:
+    image: nginx
+    ports:
+      - 80:80
+      - 443:443
+    volumes_from:
+      - datastore
+    links:
+      - php:php
+    environment:
+      PHP_HOST: php
+      #SERVER_NAME: chris-test.com
+      SSL: "true"
+
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes_from:
+      - datastore
+    links:
+      - db:db
+    working_dir: /var/www/app
+    environment:
+      PHP_OPCACHE_ENABLE: 0
+      DB_HOST_MASTER: db
+      DB_HOST_SLAVE: db
+
+  db:
+    image: mysql:5.7
+    # Disable asynchronous I/O to fix a Windows problem
+    command: "--innodb_use_native_aio=0"
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: pass
+      MYSQL_DATABASE: test
+    volumes:
+      - ./mysql:/var/lib/mysql
+      #- ./databases:/databases
+
+  myadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - 5000:80
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: pass
